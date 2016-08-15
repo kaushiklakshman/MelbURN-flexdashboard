@@ -1,0 +1,182 @@
+---
+title: "Melbourne Cup Market Formation"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    theme: cerulean
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+## Loading required libraries
+library(flexdashboard)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(networkD3)
+library(ggplot2)
+library(plotly)
+options(scipen = 999)
+
+## Loading required files
+melb.cup <- read.csv("melb_cup.csv")
+
+## Data Wrangling
+## Converting date from character to POSIX format
+melb.cup$taken_date <- ymd_hms(melb.cup$taken_date)
+
+## Converting account_id to character -- for network plots
+melb.cup$putup_account_id <- as.character(melb.cup$putup_account_id)
+melb.cup$taken_account_id <- as.character(melb.cup$taken_account_id)
+```
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+Normally markets for horse racing open up 1 or 2 days prior to the race. But, the Melbourne Cup is one of the biggest races in the world and the markets open, and form, much quicker than other races. 
+
+**Choose the time point at which you want to see the state of the market**
+
+```{r inputs}
+## Slider input for taken_date filter. All data will be shown until the time point chosen by user
+sliderInput("p_date_cutoff",
+            label = NULL,
+            min = min(melb.cup$taken_date),
+            max = max(melb.cup$taken_date),
+            value = min(melb.cup$taken_date + hours(6)),
+            timeFormat = "%F",
+            width = "100%"
+            )
+```
+
+Row {data-height=150}
+-----------------------------------------------------------------------
+### **Total Matched Volume**
+
+```{r matched_volume}
+## Value Box for Total Matched Volume (amount bet so far)
+melb.cup.subset <- reactive({
+  
+  melb.cup.subset.df <- melb.cup %>% 
+                        filter(taken_date <= input$p_date_cutoff) 
+  
+  })
+
+renderValueBox({
+  
+  total.matched.volume <- round(sum(melb.cup.subset()$bet_size_aud),2)
+  
+  valueBox(total.matched.volume,
+           icon = "fa-usd")
+  
+})
+```
+
+### **Overround**
+
+```{r overround}
+## Value box for Overround (Summation of implied probabilities of all selections)
+renderValueBox({
+  
+  current.wap <- melb.cup.subset() %>% 
+                 group_by(selection_name, taken_date) %>%
+                 summarise(wap = sum(bet_size_aud * bet_price)/sum(bet_size_aud)) %>%
+                 ungroup() %>% 
+                 group_by(selection_name) %>% 
+                 top_n(1, taken_date) %>%
+                 mutate(implied_prob = 1/wap) 
+
+  overround <- round(sum(current.wap$implied_prob) * 100,2)
+  
+  valueBox(overround,
+           icon = "fa-percent")
+  
+})
+```
+
+### **Unique Customers**
+
+```{r unique_customers}
+## Value box for counting the number of customers active in the market
+renderValueBox({
+  
+  unique.putups <- data.frame(acc_id = unique(melb.cup.subset()$putup_account_id))
+  unique.takens <- data.frame(acc_id = unique(melb.cup.subset()$taken_account_id))
+  unique.accs.df <- bind_rows(unique.putups, unique.takens)
+  unique.accs <- length(unique(unique.accs.df$acc_id))
+  
+  valueBox(unique.accs,
+           icon = "fa-user")
+  
+  
+})
+
+```
+
+Row {data-height=500}
+-----------------------------------------------------------------------
+
+### **Weighted Average Implied Probability**
+
+```{r}
+## Plot to show the a representation of the weighted average odds or implied probability or 
+## What does the money or the market tell you about odds, rather than subjective opinion
+renderPlotly({
+  
+  melb.cup.sub.wap <- melb.cup.subset() %>%
+                      group_by(selection_name, taken_date) %>%
+                      summarise(wap = sum(bet_size_aud * bet_price)/sum(bet_size_aud))
+
+  melb.cup.wap.plot <- ggplot(melb.cup.sub.wap,
+                              aes(x = taken_date, y = 1/wap,
+                                  group = selection_name,
+                                  colour = selection_name)) +
+                       geom_line() +
+                       theme_minimal() + 
+                       theme(axis.title.x = element_blank(),
+                             axis.title.y = element_blank()) +
+                       labs(colour = "Selection Name")
+
+  ggplotly(melb.cup.wap.plot)
+  
+})
+```
+
+Row {data-height=350}
+-----------------------------------------------------------------------
+
+### **Betting Exchange Market Network**
+
+```{r network}
+## Network plot visualising the betting exchange where the bet is the edge and two customers matching
+## against each other are the vertices
+renderSimpleNetwork({
+  simpleNetwork(melb.cup.subset()%>%
+                select(putup_account_id, taken_account_id),
+                zoom = TRUE)
+  })
+```
+
+### **Cumulative Matched Volume**
+```{r matched_volume_plot}
+renderPlotly({
+  
+  matched.volume <- melb.cup.subset() %>% 
+                    group_by(taken_date) %>% 
+                    summarise(total_matched_volume = sum(bet_size_aud)) %>% 
+                    mutate(cumulative_total_matched_volume = cumsum(total_matched_volume))
+  
+  matched.volume.plot <- ggplot(matched.volume,
+                                aes(x = taken_date,
+                                    y = cumulative_total_matched_volume)) + 
+                         geom_line() + 
+                         theme_minimal() + 
+                         theme(axis.title.x = element_blank(),
+                               axis.title.y = element_blank())
+  
+  ggplotly(matched.volume.plot)
+})
+```
+
+

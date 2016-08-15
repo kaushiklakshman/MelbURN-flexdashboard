@@ -1,0 +1,347 @@
+---
+title: "Sports on Betfair"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+## Loading required packages
+library(flexdashboard)
+library(leaflet)
+library(plotly)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(dygraphs)
+library(lubridate)
+library(xts)
+
+## Removing scientific notation
+options(scipen = 999)
+
+## Loading data files 
+sports.geo <- read.csv("sports_geo.csv")
+sports.ts <- read.csv("sports_ts.csv")
+sports.in.play <- read.csv("sports_in_play.csv")
+
+## Data Wrangling
+
+## Converting to sports.ts data frame to a xts time series object after some data wrangling
+sports.ts <- sports.ts %>%
+             mutate(calendar_dt = ymd_hms(calendar_dt)) %>%
+             spread(sport_name, turnover_gbp) 
+
+rownames(sports.ts) <- sports.ts$calendar_dt
+sports.ts[is.na(sports.ts)] <- 0
+
+sports.ts <- sports.ts %>% 
+             select(-calendar_dt) %>%
+             as.matrix() %>%
+             as.xts(dateFormat = 'Date')
+
+```
+
+Aussie Rules
+=======================================================================
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### **Seasonality**
+
+```{r afl_ts}
+## Using dygraphs to plot time series of Aussie Rules turnover since 2013
+dygraph(sports.ts[,"Australian Rules"]) %>%
+  dyOptions(maxNumberWidth = 20) %>%
+  dyAxis("y", label = "Turnover")
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### **Customers Location**
+
+```{r aussie_rules_geo}
+## Using Leaflet Widget to plot map of Aussie Rules customers based on IP Address
+leaflet(sports.geo %>%
+        filter(sport_name == "Australian Rules")) %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~latitude,
+                   lng = ~longitude, 
+                   clusterOptions = markerClusterOptions())
+```
+
+
+### **Pre-play vs In-Play**
+
+```{r aussie_rules_in_play}
+## Using plotly to create scatter plot showing relationship between turnover generated 
+## pre play (before game starts) and turnover generated in play (after game starts) in Aussie Rules
+plot_ly(sports.in.play %>%
+          filter(sport_name == "Australian Rules"),
+        x = pre_play_turnover,
+        y = in_play_turnover,
+        mode = "markers",
+        type = "scatter") %>%
+  layout(xaxis = list(
+           title = "Pre Play Turnover"
+         ),
+         yaxis = list(
+           title = "In Play Turnover"
+         )
+  )
+```
+
+
+Rugby League
+=======================================================================
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### **Seasonality**
+
+```{r rugby_league_ts}
+## Using dygraphs to plot time series of Rugby League turnover since 2013
+dygraph(sports.ts[,"Rugby League"]) %>%
+  dyOptions(maxNumberWidth = 20) %>%
+  dyAxis("y", label = "Turnover")
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### **Customers Location**
+
+```{r rugby_league_geo}
+## Using Leaflet Widget to plot map of Rugby League customers based on IP Address
+leaflet(sports.geo %>%
+        filter(sport_name == "Rugby League")) %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~latitude,
+                   lng = ~longitude, 
+                   clusterOptions = markerClusterOptions())
+```
+
+### **Pre-play vs In-Play**
+
+```{r rugby_league_in_play}
+## Using plotly to create scatter plot showing relationship between turnover generated 
+## pre play (before game starts) and turnover generated in play (after game starts) in Rugby League
+plot_ly(sports.in.play %>%
+          filter(sport_name == "Rugby League"),
+        x = pre_play_turnover,
+        y = in_play_turnover,
+        mode = "markers",
+        type = "scatter") %>%
+  layout(xaxis = list(
+           title = "Pre Play Turnover"
+         ),
+         yaxis = list(
+           title = "In Play Turnover"
+         )
+  )
+```
+
+Rugby Union
+=======================================================================
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### **Seasonality**
+
+```{r rugby_union_ts}
+## Using dygraphs to plot time series of Rugby Union turnover since 2013
+dygraph(sports.ts[,"Rugby Union"]) %>%
+  dyOptions(maxNumberWidth = 20) %>%
+  dyAxis("y", label = "Turnover")
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### **Customers Location**
+
+```{r rugby_union_geo}
+## Using Leaflet Widget to plot map of Rugby Union customers based on IP Address
+leaflet(sports.geo %>%
+        filter(sport_name == "Rugby Union")) %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~latitude,
+                   lng = ~longitude, 
+                   clusterOptions = markerClusterOptions())
+```
+
+### **Pre-play vs In-Play**
+
+```{r rugby_union_in_play}
+## Using plotly to create scatter plot showing relationship between turnover generated 
+## pre play (before game starts) and turnover generated in play (after game starts) in Rugby Union
+plot_ly(sports.in.play %>%
+          filter(sport_name == "Rugby Union"),
+        x = pre_play_turnover,
+        y = in_play_turnover,
+        mode = "markers",
+        type = "scatter") %>%
+  layout(xaxis = list(
+           title = "Pre Play Turnover"
+         ),
+         yaxis = list(
+           title = "In Play Turnover"
+         )
+  )
+```
+
+Cricket
+=======================================================================
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### **Seasonality**
+
+```{r cricket_ts}
+## Using dygraphs to plot time series of Cricket turnover since 2013
+dygraph(sports.ts[,"Cricket"]) %>%
+  dyOptions(maxNumberWidth = 20) %>%
+  dyAxis("y", label = "Turnover")
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### **Customers Location**
+
+```{r cricket_geo}
+## Using Leaflet Widget to plot map of Cricket customers based on IP Address
+leaflet(sports.geo %>%
+        filter(sport_name == "Cricket")) %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~latitude,
+                   lng = ~longitude, 
+                   clusterOptions = markerClusterOptions())
+```
+
+### **Pre-play vs In-Play**
+
+```{r cricket_in_play}
+## Using plotly to create scatter plot showing relationship between turnover generated 
+## pre play (before game starts) and turnover generated in play (after game starts) in Cricket
+plot_ly(sports.in.play %>%
+          filter(sport_name == "Cricket"),
+        x = pre_play_turnover,
+        y = in_play_turnover,
+        mode = "markers",
+        type = "scatter") %>%
+  layout(xaxis = list(
+           title = "Pre Play Turnover"
+         ),
+         yaxis = list(
+           title = "In Play Turnover"
+         )
+  )
+```
+
+Tennis
+=======================================================================
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### **Seasonality**
+
+```{r tennis_ts}
+## Using dygraphs to plot time series of Tennis turnover since 2013
+dygraph(sports.ts[,"Tennis"]) %>%
+  dyOptions(maxNumberWidth = 20) %>%
+  dyAxis("y", label = "Turnover")
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### **Customers Location**
+
+```{r tennis_geo}
+## Using Leaflet Widget to plot map of Tennis customers based on IP Address
+leaflet(sports.geo %>%
+        filter(sport_name == "Tennis")) %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~latitude,
+                   lng = ~longitude, 
+                   clusterOptions = markerClusterOptions())
+```
+
+### **Pre-play vs In-Play**
+
+```{r tennis_in_play}
+## Using plotly to create scatter plot showing relationship between turnover generated 
+## pre play (before game starts) and turnover generated in play (after game starts) in Tennis
+plot_ly(sports.in.play %>%
+          filter(sport_name == "Tennis"),
+        x = pre_play_turnover,
+        y = in_play_turnover,
+        mode = "markers",
+        type = "scatter") %>%
+  layout(xaxis = list(
+           title = "Pre Play Turnover"
+         ),
+         yaxis = list(
+           title = "In Play Turnover"
+         )
+  )
+```
+
+Soccer
+=======================================================================
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### **Seasonality**
+
+```{r soccer_ts}
+## Using dygraphs to plot time series of Soccer turnover since 2013
+dygraph(sports.ts[,"Soccer"]) %>%
+  dyOptions(maxNumberWidth = 20) %>%
+  dyAxis("y", label = "Turnover")
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### **Customers Location**
+
+```{r soccer_geo}
+## Using Leaflet Widget to plot map of Soccer customers based on IP Address
+leaflet(sports.geo %>%
+        filter(sport_name == "Soccer")) %>%
+  addTiles() %>%
+  addCircleMarkers(lat = ~latitude,
+                   lng = ~longitude, 
+                   clusterOptions = markerClusterOptions())
+```
+
+### **Pre-play vs In-Play**
+
+```{r soccer_in_play}
+## Using plotly to create scatter plot showing relationship between turnover generated 
+## pre play (before game starts) and turnover generated in play (after game starts) in Soccer
+plot_ly(sports.in.play %>%
+          filter(sport_name == "Soccer"),
+        x = pre_play_turnover,
+        y = in_play_turnover,
+        mode = "markers",
+        type = "scatter") %>%
+  layout(xaxis = list(
+           title = "Pre Play Turnover"
+         ),
+         yaxis = list(
+           title = "In Play Turnover"
+         )
+  )
+```

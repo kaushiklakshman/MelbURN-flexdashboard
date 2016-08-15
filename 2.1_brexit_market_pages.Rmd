@@ -1,0 +1,115 @@
+---
+title: "Brexit Market on Betfair"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+## Loading required packages
+library(flexdashboard)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+
+## Removing Scientific Notation
+options(scipen=999)
+
+## Loading data files
+brexit.best.prices <- read.csv("brexit_best_prices.csv")
+brexit.matched.volume <- read.csv("brexit_matched_volume.csv")
+
+## Data Manipulation
+brexit.best.prices$TAKEN_DATE <- ymd_hms(brexit.best.prices$TAKEN_DATE)
+brexit.best.prices$SELECTION_ID <- factor(brexit.best.prices$SELECTION_ID, labels = c("Leave","Remain"))
+
+brexit.matched.volume$TAKEN_DATE <- ymd_hms(brexit.matched.volume$TAKEN_DATE)
+
+## Creating variables to identify last 24 hours of the market
+last.date <- max(brexit.best.prices$TAKEN_DATE)
+one.day.before.last.date <- last.date - 24*60*60
+```
+
+Market
+===================================
+
+### **Markets prior to day of the Vote**
+
+```{r prev_months}
+## Subsetting all but last 24 hours of the market
+brexit.best.prices.prev.months <- brexit.best.prices %>% 
+                                  filter(!between(TAKEN_DATE, one.day.before.last.date, last.date))
+
+## Plotting the prior months of the market
+prev.months.plot <- ggplot(brexit.best.prices.prev.months,
+                           aes(x = TAKEN_DATE,
+                               y = 1/BEST_BACK_PRICE,
+                               group = SELECTION_ID,
+                               colour = SELECTION_ID)) +
+                    geom_line() +
+                    theme_minimal() +
+                    xlab("Time") + 
+                    ylab("Implied Probability (1/Best Price or Odds)") +
+                    scale_color_brewer(palette = "Set1", name = "Vote") 
+
+prev.months.plot
+```
+
+> For months leading up to the last day, prior to the day of the counting, there have been a few price changes but Vote Remain has been odds on favourite for nearly a year. 
+
+### **Market on the day of the Vote**
+
+```{r on_day}
+## Subsetting last 24 hours of the market
+brexit.best.prices.last.24.hours <- brexit.best.prices %>% 
+                                    filter(between(TAKEN_DATE, one.day.before.last.date, last.date))
+
+## Plotting the last 24 hours
+last.24.hours.plot <- ggplot(brexit.best.prices.last.24.hours,
+                             aes(x = TAKEN_DATE,
+                                 y = 1/BEST_BACK_PRICE,
+                                 group = SELECTION_ID,
+                                 colour = SELECTION_ID)) +
+                      geom_line() +
+                      theme_minimal() + 
+                      xlab("Time") + 
+                      ylab("Implied Probability (1/Best Price or Odds)") + 
+                      scale_color_brewer(palette = "Set1", name = "Vote")
+
+last.24.hours.plot
+```
+
+> There was incredible price fluctuation on the day of the vote (and count) where Vote Remain was tipped to be the likely outcome up until the last 6 hours. Prior to that the odds of Vote Leave begin to shorten eventually moving into favouritism. There is a tiny blip where it goes back to being outside shot, but eventually drifts into really low odds (or extremely high probability) all the way down to 1.01
+
+Matched Volume
+=============================
+
+### **Matched Volume**
+
+```{r matched_volume}
+## Creating Dataframe for cumulative matched volume in both GBP and AUD
+brexit.matched.volume.cum.last.24.hours <- brexit.matched.volume %>% 
+                                           mutate(MATCHED_GBP_CUMULATIVE = cumsum(MATCHED_GBP),
+                                           MATCHED_GBP_AUD = MATCHED_GBP_CUMULATIVE * FX_RATE) %>%
+                                           select(-FX_RATE, -MATCHED_GBP, - MATCHED_AUD) %>%
+                                           gather("currency","value",2:3) %>%
+                                           filter(between(TAKEN_DATE, one.day.before.last.date, last.date))
+## Plotting Cumulative Matched Volume
+matched.volume.plot <- ggplot(brexit.matched.volume.cum.last.24.hours,
+                              aes(x = TAKEN_DATE,
+                                  y = value,
+                                  group = currency,
+                                  colour = currency)) +
+                       geom_line() +
+                       theme_minimal() +
+                       xlab("Time") +
+                       ylab("Cumulative Matched Amount") +
+                       scale_colour_brewer(palette = "Dark2", name = "Currency") +
+                       theme(legend.position = "bottom")
+
+matched.volume.plot
+```
+
+> Knock on effects were being felt everywhere as the Pound Sterling dropped, and one rather cheeky or funny effect was the matched volume amount shown on Betfair Australia's website - in AUD, was going lower even as more money was coming in and getting matched. 
